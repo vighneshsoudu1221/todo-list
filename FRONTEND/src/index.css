@@ -7,120 +7,88 @@
 
 body {
   min-height: 100vh;
-  background: linear-gradient(
-    135deg,
-    #dbeafe,
-    #f5f3ff,
-    #e0e7ff
-  );
+  background: linear-gradient(135deg, #dbeafe, #ede9fe);
+}
 
+.app-shell {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.container {
-  width: 100%;
-  max-width: 700px;
-  padding: 20px;
-}
-
-.card {
+.auth-card {
+  width: 700px;
   background: white;
   padding: 40px;
   border-radius: 25px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
-h1 {
-  font-size: 48px;
-  color: #111827;
+.auth-card h1 {
+  font-size: 50px;
   margin-bottom: 30px;
 }
 
-label {
+.auth-card label {
   display: block;
-  font-size: 18px;
-  font-weight: bold;
-  color: #374151;
+  font-size: 20px;
   margin-bottom: 10px;
 }
 
-input {
+.auth-card input {
   width: 100%;
   padding: 18px;
   margin-bottom: 25px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #ccc;
   border-radius: 15px;
-  background-color: #ffffff;
-  color: #000000;
+  background: white;
+  color: black;
   font-size: 18px;
-  outline: none;
 }
 
-input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 5px rgba(79, 70, 229, 0.4);
+.auth-card input::placeholder {
+  color: gray;
 }
 
-input::placeholder {
-  color: #6b7280;
-}
-
-button {
+.auth-card button {
   width: 100%;
   padding: 18px;
   border: none;
   border-radius: 15px;
-  font-size: 20px;
-  font-weight: bold;
+  margin-top: 10px;
   cursor: pointer;
-  margin-bottom: 20px;
-
-  background: linear-gradient(
-    90deg,
-    #2563eb,
-    #7c3aed
-  );
-
+  font-size: 18px;
   color: white;
-  transition: transform 0.2s ease;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
 }
 
-button:hover {
-  transform: scale(1.02);
+.link-button {
+  background: transparent !important;
+  color: blue !important;
+  padding: 0 !important;
+  width: auto !important;
+  margin-left: 10px;
+}
+
+.error {
+  color: red;
+  margin-top: 15px;
 }
 
 p {
-  font-size: 18px;
-  color: #374151;
-  margin-bottom: 15px;
-}
-
-.todo-list {
   margin-top: 20px;
 }
 
-.todo-item {
-  background: #f3f4f6;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  color: black;
+/* Added to ensure input text and placeholders are visible */
+.auth-card input,
+.todo-form input,
+.todo-form select {
+  color: black !important;
+  background: white !important;
 }
 
-@media (max-width: 768px) {
-  .card {
-    padding: 25px;
-  }
-
-  h1 {
-    font-size: 36px;
-  }
-
-  input,
-  button {
-    font-size: 16px;
-    padding: 14px;
-  }
+.auth-card input::placeholder,
+.todo-form input::placeholder {
+  color: gray !important;
 }
