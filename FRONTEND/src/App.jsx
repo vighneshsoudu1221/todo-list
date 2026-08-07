@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE ||
-  (import.meta.env.DEV ? "http://localhost:5000" : "");
+  import.meta.env.VITE_API_BASE ??
+  (import.meta.env.DEV
+    ? "http://localhost:5000"
+    : "https://todo-list-1-st3e.onrender.com");
 
 const STORAGE_TOKEN = "todo_app_token";
 const STORAGE_USER = "todo_app_user";
