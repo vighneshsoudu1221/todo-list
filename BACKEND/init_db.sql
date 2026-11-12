@@ -17,3 +17,5 @@ CREATE TABLE IF NOT EXISTS todo_items (
   user_id INTEGER,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+{"status":"ok","db":"reachable"}
