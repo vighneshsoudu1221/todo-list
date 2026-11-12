@@ -3,7 +3,6 @@ require("dotenv").config();
 const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
-const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -22,51 +21,120 @@ app.use((err, req, res, next) => {
 });
 
 const rawJwtSecret = process.env.JWT_SECRET?.trim() || "";
-const JWT_SECRET = rawJwtSecret.length >= 32 ? rawJwtSecret : crypto.randomBytes(32).toString("hex");
+const JWT_SECRET =
+  rawJwtSecret.length >= 32
+    ? rawJwtSecret
+    : crypto.randomBytes(32).toString("hex");
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim().length < 32) {
-  console.warn("JWT_SECRET missing or too short; generated a temporary secret for this session.");
+  console.warn(
+    "JWT_SECRET missing or too short; generated a temporary secret for this session."
+  );
 }
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required to connect to PostgreSQL");
+// Support both PostgreSQL and MySQL
+const isPostgres = Boolean(
+  process.env.DATABASE_URL &&
+    (process.env.DATABASE_URL.startsWith("postgres://") ||
+      process.env.DATABASE_URL.startsWith("postgresql://"))
+);
+
+let dbPool;
+if (isPostgres) {
+  const { Pool } = require("pg");
+  dbPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+} else {
+  const mysql = require("mysql2/promise");
+  dbPool = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "todo",
+    port: Number(process.env.DB_PORT) || 3306,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+  });
 }
 
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Unified query wrapper
+const db = {
+  isPostgres,
+  async query(sql, params = []) {
+    if (isPostgres) {
+      let paramIndex = 1;
+      const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
+      const res = await dbPool.query(pgSql, params);
+      return {
+        rows: res.rows || [],
+        insertId: res.rows?.[0]?.id,
+      };
+    } else {
+      const mySql = sql.replace(/\$\d+/g, "?");
+      const [res] = await dbPool.query(mySql, params);
+      if (Array.isArray(res)) {
+        return { rows: res, insertId: null };
+      }
+      return { rows: [], insertId: res.insertId };
+    }
+  },
+  async end() {
+    return dbPool.end();
+  },
+};
 
 const initTables = async () => {
-  const createUsersTable = `
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username VARCHAR(255) UNIQUE NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    )
-  `;
+  if (isPostgres) {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS todo_items (
+        id SERIAL PRIMARY KEY,
+        item_description TEXT,
+        category VARCHAR(255),
+        completed BOOLEAN DEFAULT FALSE,
+        user_id INTEGER,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  } else {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS todo_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        item_description TEXT,
+        category VARCHAR(255),
+        completed BOOLEAN DEFAULT FALSE,
+        user_id INT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+  }
 
-  const createTodosTable = `
-    CREATE TABLE IF NOT EXISTS todo_items (
-      id SERIAL PRIMARY KEY,
-      item_description TEXT,
-      category VARCHAR(255),
-      completed BOOLEAN DEFAULT FALSE,
-      user_id INTEGER,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `;
-
-  await db.query(createUsersTable);
-  console.log("Users table ready");
-  await db.query(createTodosTable);
-  console.log("Todo items table ready");
+  console.log("Database tables verified successfully");
 };
 
 const startServer = async () => {
   try {
     await db.query("SELECT 1");
+    console.log(`Connected to ${isPostgres ? "PostgreSQL" : "MySQL"} database.`);
     await initTables();
 
     const PORT = process.env.PORT || 5000;
@@ -118,18 +186,20 @@ app.post("/register", async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = await db.query(
-      "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id",
-      [username, email, hashedPassword]
-    );
+    const sql = isPostgres
+      ? "INSERT INTO users (username, email, password) VALUES (?, ?, ?) RETURNING id"
+      : "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+
+    const result = await db.query(sql, [username, email, hashedPassword]);
+    const userId = result.insertId || result.rows?.[0]?.id;
 
     res.json({
       message: "User registered successfully",
-      userId: result.rows[0].id,
+      userId,
     });
   } catch (err) {
     console.error("Register error:", err);
-    if (err.code === "23505") {
+    if (err.code === "23505" || err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({
         error: "Username or Email already exists",
       });
@@ -154,11 +224,11 @@ app.post("/login", async (req, res) => {
 
   try {
     const result = await db.query(
-      "SELECT * FROM users WHERE username = $1",
+      "SELECT * FROM users WHERE username = ?",
       [username]
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows || result.rows.length === 0) {
       return res.status(400).json({
         error: "User not found",
       });
@@ -203,10 +273,10 @@ app.post("/login", async (req, res) => {
 app.get("/", authenticateToken, async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT id AS "ID", item_description AS "itemDescription",
+      `SELECT id AS ID, item_description AS itemDescription,
               category, completed, user_id
        FROM todo_items
-       WHERE user_id = $1
+       WHERE user_id = ?
        ORDER BY id DESC`,
       [req.user.id]
     );
@@ -231,16 +301,19 @@ app.post("/add-item", authenticateToken, async (req, res) => {
   const normalizedCategory = category || "General";
 
   try {
-    const result = await db.query(
-      `INSERT INTO todo_items (item_description, category, user_id)
-       VALUES ($1, $2, $3)
-       RETURNING id`,
-      [sanitizedText, normalizedCategory, req.user.id]
-    );
+    const sql = isPostgres
+      ? `INSERT INTO todo_items (item_description, category, user_id)
+         VALUES (?, ?, ?)
+         RETURNING id`
+      : `INSERT INTO todo_items (item_description, category, user_id)
+         VALUES (?, ?, ?)`;
+
+    const result = await db.query(sql, [sanitizedText, normalizedCategory, req.user.id]);
+    const newId = result.insertId || result.rows?.[0]?.id;
 
     res.json({
       message: "Todo added",
-      id: result.rows[0].id,
+      id: newId,
       itemDescription: sanitizedText,
       category: normalizedCategory,
       completed: 0,
@@ -260,7 +333,7 @@ app.put("/toggle-complete/:id", authenticateToken, async (req, res) => {
 
   try {
     await db.query(
-      "UPDATE todo_items SET completed = $1 WHERE id = $2 AND user_id = $3",
+      "UPDATE todo_items SET completed = ? WHERE id = ? AND user_id = ?",
       [nextCompleted, req.params.id, req.user.id]
     );
 
@@ -279,7 +352,7 @@ app.put("/toggle-complete/:id", authenticateToken, async (req, res) => {
 app.delete("/delete-item/:id", authenticateToken, async (req, res) => {
   try {
     await db.query(
-      "DELETE FROM todo_items WHERE id = $1 AND user_id = $2",
+      "DELETE FROM todo_items WHERE id = ? AND user_id = ?",
       [req.params.id, req.user.id]
     );
 

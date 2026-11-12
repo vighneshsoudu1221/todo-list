@@ -10,7 +10,10 @@ const STORAGE_USER = "todo_app_user";
 
 const CATEGORIES = ["General", "Work", "Personal", "Shopping", "Urgent"];
 const isTodoCompleted = (completed) =>
-  completed === true || completed === 1 || completed === "1";
+  completed === true ||
+  completed === 1 ||
+  completed === "1" ||
+  String(completed).toLowerCase() === "true";
 
 function App() {
   const [view, setView] = useState("login");
@@ -343,7 +346,9 @@ function TodoPage({ user, logout, authHeaders }) {
     const newStatus = isTodoCompleted(currentCompleted) ? 0 : 1;
     // Optimistic UI update
     setTodos((prev) =>
-      prev.map((t) => (t.ID === id ? { ...t, completed: newStatus } : t))
+      prev.map((t) =>
+        Number(t.ID || t.id) === Number(id) ? { ...t, completed: newStatus } : t
+      )
     );
 
     try {
@@ -363,7 +368,7 @@ function TodoPage({ user, logout, authHeaders }) {
 
   const deleteTodo = async (id) => {
     // Optimistic delete
-    setTodos((prev) => prev.filter((t) => t.ID !== id));
+    setTodos((prev) => prev.filter((t) => Number(t.ID || t.id) !== Number(id)));
 
     try {
       const response = await fetch(`${API_BASE}/delete-item/${id}`, {
@@ -381,12 +386,14 @@ function TodoPage({ user, logout, authHeaders }) {
 
   const filteredTodos = useMemo(() => {
     return todos.filter((todo) => {
-      const matchesSearch = todo.itemDescription
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        selectedCategoryFilter === "All" ||
-        todo.category === selectedCategoryFilter;
+      const desc = (todo.itemDescription || todo.item_description || "").toLowerCase();
+      const query = (searchQuery || "").trim().toLowerCase();
+      const matchesSearch = !query || desc.includes(query);
+
+      const cat = (todo.category || "General").toLowerCase();
+      const selectedCat = (selectedCategoryFilter || "All").toLowerCase();
+      const matchesCategory = selectedCat === "all" || cat === selectedCat;
+
       const completed = isTodoCompleted(todo.completed);
       const matchesStatus =
         statusFilter === "all"
@@ -534,7 +541,7 @@ function TodoPage({ user, logout, authHeaders }) {
           <ul className="todo-list">
             {filteredTodos.map((todo) => (
               <li
-                key={todo.ID}
+                key={todo.ID || todo.id}
                 className={`todo-item ${
                   isTodoCompleted(todo.completed) ? "completed" : ""
                 }`}
@@ -543,21 +550,29 @@ function TodoPage({ user, logout, authHeaders }) {
                   <input
                     type="checkbox"
                     checked={isTodoCompleted(todo.completed)}
-                    onChange={() => toggleComplete(todo.ID, todo.completed)}
+                    onChange={() => toggleComplete(todo.ID || todo.id, todo.completed)}
                   />
                   <span className="checkmark"></span>
                 </label>
 
-                <div className="todo-content">
-                  <span className="todo-text">{todo.itemDescription}</span>
-                  <span className={`category-tag tag-${todo.category?.toLowerCase() || "general"}`}>
+                <div
+                  className="todo-content"
+                  onClick={() => toggleComplete(todo.ID || todo.id, todo.completed)}
+                  style={{ cursor: "pointer" }}
+                  title="Click to toggle status"
+                >
+                  <span className="todo-text">{todo.itemDescription || todo.item_description}</span>
+                  <span className={`category-tag tag-${(todo.category || "general").toLowerCase()}`}>
                     {todo.category || "General"}
                   </span>
                 </div>
 
                 <button
                   className="btn-delete"
-                  onClick={() => deleteTodo(todo.ID)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteTodo(todo.ID || todo.id);
+                  }}
                   title="Delete task"
                 >
                   ✕

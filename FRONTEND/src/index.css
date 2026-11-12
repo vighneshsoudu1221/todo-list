@@ -523,24 +523,31 @@ button:focus-visible {
 
 /* Checkbox Styling */
 .checkbox-container {
-  display: block;
+  display: flex;
+  align-items: center;
   position: relative;
-  padding-left: 28px;
   cursor: pointer;
   user-select: none;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
 }
 
 .checkbox-container input {
   position: absolute;
   opacity: 0;
   cursor: pointer;
-  height: 0;
-  width: 0;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  margin: 0;
+  z-index: 2;
 }
 
 .checkmark {
   position: absolute;
-  top: -11px;
+  top: 0;
   left: 0;
   height: 22px;
   width: 22px;
@@ -548,6 +555,7 @@ button:focus-visible {
   border: 2px solid #cbd5e1;
   border-radius: 6px;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
 .checkbox-container:hover input ~ .checkmark {
@@ -676,4 +684,17 @@ button:focus-visible {
   .stats-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Added to ensure input text and placeholders are visible */
+.auth-card input,
+.todo-form input,
+.todo-form select {
+  color: black !important;
+  background: white !important;
+}
+
+.auth-card input::placeholder,
+.todo-form input::placeholder {
+  color: gray !important;
 }
