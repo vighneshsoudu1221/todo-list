@@ -1,6 +1,6 @@
 # Todo App (Backend + Frontend)
 
-This repository contains a React frontend (Vite) and an Express + MySQL backend.
+This repository contains a React frontend (Vite) and an Express + PostgreSQL backend.
 
 ## Quick overview
 
@@ -31,12 +31,8 @@ curl -i http://localhost:5000/health
 
 2. Database
 
-- Create the required tables using the provided SQL:
-
-```bash
-# adjust host/user/password as needed
-mysql -h DB_HOST -u DB_USER -pDB_PASSWORD DB_NAME < BACKEND/init_db.sql
-```
+- Create a PostgreSQL database named `todo` and set `DATABASE_URL` in `BACKEND/.env`.
+- The backend creates its tables on startup. `BACKEND/init_db.sql` is available for manual schema setup.
 
 3. Frontend
 
@@ -54,15 +50,13 @@ Open `http://localhost:3000` in the browser (Vite default).
 
 - Create a new Web Service in Render and connect the repository.
 - Set the service root directory to `BACKEND` and the start command to `npm start`.
-- Set environment variables on Render (Service > Environment):
-  - `DB_HOST` - host for your MySQL
-  - `DB_USER` - database user
-  - `DB_PASSWORD` - database password
-  - `DB_NAME` - database name
+- Create a Render Postgres database in the same region as the backend service.
+- Set environment variables on the backend service (Service > Environment):
+  - `DATABASE_URL` - the Postgres database's internal URL from Render
   - `JWT_SECRET` - random secret of at least 32 characters
   - `PORT` - optional (default 5000)
 
-- Ensure the database is accessible by Render (use Render managed DB or whitelist your DB host).
+- The backend creates its tables on startup.
 - Redeploy and check logs in Render dashboard. Verify `https://<your-backend>/health` returns `{"status":"ok","db":"reachable"}` before testing login.
 - If `/health` returns 404, the Render service is not running this repository's `BACKEND/server.js`; check its root directory, branch, and start command.
 

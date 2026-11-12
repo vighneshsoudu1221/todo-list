@@ -2,18 +2,18 @@
 -- Create required tables for the Todo app
 
 CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   username VARCHAR(255) UNIQUE NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS todoItems (
-  ID INT AUTO_INCREMENT PRIMARY KEY,
-  itemDescription TEXT,
+CREATE TABLE IF NOT EXISTS todo_items (
+  id SERIAL PRIMARY KEY,
+  item_description TEXT,
   category VARCHAR(255),
-  completed TINYINT DEFAULT 0,
-  user_id INT,
+  completed BOOLEAN DEFAULT FALSE,
+  user_id INTEGER,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
