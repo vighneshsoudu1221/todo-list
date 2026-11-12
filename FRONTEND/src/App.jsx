@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? "http://localhost:5000" : "https://todo-list-moy3.onrender.com")
+  (import.meta.env.DEV ? "http://localhost:5000" : "https://todo-backend-8v67.onrender.com")
 ).replace(/\/+$/, "");
 
 const STORAGE_TOKEN = "todo_app_token";
