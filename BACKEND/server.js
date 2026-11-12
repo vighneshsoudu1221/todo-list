@@ -42,8 +42,13 @@ const isPostgres = Boolean(
 let dbPool;
 if (isPostgres) {
   const { Pool } = require("pg");
+  const isCloud =
+    process.env.DATABASE_URL.includes("render.com") ||
+    process.env.DATABASE_URL.includes("dpg-") ||
+    process.env.NODE_ENV === "production";
   dbPool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: isCloud ? { rejectUnauthorized: false } : undefined,
   });
 } else {
   const mysql = require("mysql2/promise");
